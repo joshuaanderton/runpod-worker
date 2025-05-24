@@ -4,5 +4,11 @@ runpod~=1.7.9
 os
 base64
 io
-torch
 PIL
+torch
+torchvision
+torchaudio --index-url https://download.pytorch.org/whl/cu118
+diffusers
+transformers
+accelerate
+safetensors
