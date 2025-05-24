@@ -54,7 +54,7 @@ def handler(event):
         init_image = decode_image(image_b64)
 
         if model_id not in loaded_models:
-            pipe = StableDiffusionImg2ImgPipeline.from_pretrained(model_id, torch_dtype=torch_dtype)
+            pipe = AutoPipelineForImage2Image.from_pretrained(model_id, torch_dtype=torch_dtype)
             pipe = pipe.to("cuda" if torch.cuda.is_available() else "cpu")
             loaded_models[model_id] = pipe
         pipe = loaded_models[model_id]
