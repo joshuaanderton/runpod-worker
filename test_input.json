@@ -1,5 +1,9 @@
 {
   "input": {
-    "name": "John Doe"
+    "model": "gpt2",
+    "task": "text-generation",
+    "data": {
+      "inputs": "The quick brown fox"
+    }
   }
 }
