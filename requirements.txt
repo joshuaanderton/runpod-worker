@@ -1,8 +1,8 @@
 # Required Python packages get listed here, one per line.
 
 runpod~=1.7.9
-requests
 os
 base64
-transformers
+io
 torch
+PIL
