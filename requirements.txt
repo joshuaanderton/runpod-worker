@@ -4,3 +4,5 @@ runpod~=1.7.9
 requests
 os
 base64
+transformers
+torch
