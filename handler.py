@@ -26,6 +26,11 @@ def encode_image(pil_image):
 def encode_video(video_path):
     with open(video_path, "rb") as f:
         return base64.b64encode(f.read()).decode("utf-8")
+        
+def get_valid_kwargs(pipe, input_data):
+    """Filter input_data to only the kwargs accepted by the pipeline."""
+    valid_keys = pipe.__call__.__code__.co_varnames
+    return {k: v for k, v in input_data.items() if k in valid_keys}
 
 def handler(event):
     task = event['input'].get('task')              # text-to-image, image-to-image, image-to-video
@@ -33,6 +38,7 @@ def handler(event):
     prompt = event['input'].get('prompt')          # Prompt text
     image_b64 = event['input'].get('image')        # base64 image input (optional)
     seed = event['input'].get('seed', None)
+    #kwargs = get_valid_kwargs(pipe, event["input"])
 
     if not task or not model_id or not prompt:
         return {"error": "Missing required fields: 'task', 'model', or 'prompt'"}
