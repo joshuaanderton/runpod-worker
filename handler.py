@@ -1,18 +1,21 @@
-"""Example handler file."""
-
 import runpod
+import requests
+import os
 
-# If your handler runs inference on a model, load the model here.
-# You will want models to be loaded into memory before starting serverless.
+HF_TOKEN = os.getenv("HF_TOKEN")
 
+def handler(event):
+    model = event['input'].get('model')  # e.g. "gpt2" or "Salesforce/blip-image-captioning-base"
+    task = event['input'].get('task')    # e.g. "text-generation" or "image-to-text"
+    data = event['input'].get('data')    # e.g. {"inputs": "Hello world"}
 
-def handler(job):
-    """Handler function that will be used to process jobs."""
-    job_input = job["input"]
+    if not model or not task or not data:
+        return { "error": "Missing 'model', 'task', or 'data' in input." }
 
-    name = job_input.get("name", "World")
+    # Call Hugging Face Inference API
+    url = f"https://api-inference.huggingface.co/models/{model}"
+    headers = { "Authorization": f"Bearer {HF_TOKEN}" }
 
-    return f"Hello, {name}!"
+    response = requests.post(url, headers=headers, json=data)
 
-
-runpod.serverless.start({"handler": handler})
+    return response.json()
