@@ -74,4 +74,4 @@ def handler(event):
         return { "video_base64": encode_video(video_path) }
 
     else:
-        return {"error": f"Unsupported task: {task}"}
+        return { "error": f"Unsupported task: {task}" }
