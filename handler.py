@@ -7,7 +7,7 @@ from PIL import Image
 
 from diffusers import (
     StableDiffusionPipeline,
-    StableDiffusionImg2ImgPipeline,
+    AutoPipelineForImage2Image,
     AutoPipelineForText2Video
 )
 
