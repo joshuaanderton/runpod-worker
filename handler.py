@@ -72,6 +72,28 @@ def handler(event):
         video_path = "output.mp4"
         output.save(video_path)
         return { "video_base64": encode_video(video_path) }
+        
+    elif task == "image-to-video":
+        if not image_b64:
+            return {"error": "Missing 'image' input for image-to-video task."}
+        init_image = decode_image(image_b64)
+
+        # Save image locally for models that expect file input
+        input_image_path = "input.png"
+        init_image.save(input_image_path)
+
+        if model_id not in loaded_models:
+            pipe = AutoPipelineForText2Video.from_pretrained(model_id, torch_dtype=torch_dtype)
+            pipe = pipe.to("cuda" if torch.cuda.is_available() else "cpu")
+            loaded_models[model_id] = pipe
+
+        pipe = loaded_models[model_id]
+
+        output = pipe(image=input_image_path, num_frames=16)
+        video_path = "output.mp4"
+        output.save(video_path)
+
+        return { "video_base64": encode_video(video_path) }
 
     else:
         return { "error": f"Unsupported task: {task}" }
