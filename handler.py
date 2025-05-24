@@ -103,3 +103,5 @@ def handler(event):
 
     else:
         return { "error": f"Unsupported task: {task}" }
+
+runpod.serverless.start({"handler": handler})
