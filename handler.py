@@ -69,7 +69,10 @@ def handler(event):
 
     elif task == "text-to-video" or task == "image-to-video":
         if model_id not in loaded_models:
-            pipe = WanPipeline.from_pretrained(model_id, torch_dtype=torch_dtype)
+            if model_id.startswith("Wan-AI/"):
+                pipe = WanPipeline.from_pretrained(model_id, torch_dtype=torch_dtype)
+            else:
+                pipe = AutoPipelineForText2Image.from_pretrained(model_id, torch_dtype=torch_dtype)
             pipe = pipe.to("cuda" if torch.cuda.is_available() else "cpu")
             loaded_models[model_id] = pipe
         pipe = loaded_models[model_id]
