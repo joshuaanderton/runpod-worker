@@ -16,6 +16,7 @@ from diffusers import (
 
 # Global model cache
 loaded_models = {}
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def decode_image(b64_string):
     image_data = base64.b64decode(b64_string)
@@ -56,6 +57,7 @@ def handler(event):
     image_b64 = event['input'].get('image') # base64 image input (optional)
     seed = event['input'].get('seed', -1)   # Random seed (optional)
     #kwargs = get_valid_kwargs(pipe, event["input"])
+    input_image_path = "input.png"
 
     if not task or not model_id or not prompt:
         return {"error": "Missing required fields: 'task', 'model', or 'prompt'"}
@@ -64,69 +66,76 @@ def handler(event):
 
     if task == "text-to-image":
         if model_id not in loaded_models:
-            pipe = AutoPipelineForText2Image.from_pretrained(model_id, torch_dtype=torch_dtype)
-            pipe = pipe.to("cuda" if torch.cuda.is_available() else "cpu")
-            loaded_models[model_id] = pipe
-        pipe = loaded_models[model_id]
-        result = pipe(prompt).images[0]
+            model = AutoPipelineForText2Image.from_pretrained(model_id, torch_dtype=torch_dtype)
+            model.to(device)
+            loaded_models[model_id] = model
+
+        model = loaded_models[model_id]
+        output = model(prompt).images[0]
+
         out_path = "output.png"
-        result.save(out_path)
+        output.save(out_path)
         s3_url = upload_to_s3(out_path, "image/png")
-        return { "s3_url": s3_url }
+
+        return { "url": s3_url }
 
     elif task == "image-to-image":
         if not image_b64:
             return {"error": "Missing 'image' input for image-to-image task."}
-        init_image = decode_image(image_b64)
+        input_image = decode_image(image_b64)
+        input_image.save(input_image_path)
 
         if model_id not in loaded_models:
-            pipe = AutoPipelineForImage2Image.from_pretrained(model_id, torch_dtype=torch_dtype)
-            pipe = pipe.to("cuda" if torch.cuda.is_available() else "cpu")
-            loaded_models[model_id] = pipe
-        pipe = loaded_models[model_id]
-        result = pipe(prompt=prompt, image=init_image, strength=0.75, guidance_scale=7.5).images[0]
+            model = AutoPipelineForImage2Image.from_pretrained(model_id, torch_dtype=torch_dtype)
+            model.to(device)
+            loaded_models[model_id] = model
+
+        model = loaded_models[model_id]
+        output = model(prompt=prompt, image=input_image_path, strength=0.75, guidance_scale=7.5).images[0]
+
         out_path = "output.png"
-        result.save(out_path)
+        output.save(out_path)
         s3_url = upload_to_s3(out_path, "image/png")
-        return { "s3_url": s3_url }
+
+        return { "url": s3_url }
 
     elif task == "text-to-video" or task == "image-to-video":
         if model_id not in loaded_models:
             if model_id.startswith("Wan-AI/"):
-                pipe = WanPipeline.from_pretrained(model_id, torch_dtype=torch_dtype)
+                model = WanPipeline.from_pretrained(model_id, torch_dtype=torch_dtype)
             else:
-                pipe = AutoPipelineForText2Image.from_pretrained(model_id, torch_dtype=torch_dtype)
-            pipe = pipe.to("cuda" if torch.cuda.is_available() else "cpu")
-            loaded_models[model_id] = pipe
-        pipe = loaded_models[model_id]
+                model = AutoPipelineForText2Image.from_pretrained(model_id, torch_dtype=torch_dtype)
+            model.to(device)
+            loaded_models[model_id] = model
 
-        output = pipe(prompt=prompt, num_frames=16)
-        video_path = "output.mp4"
-        output.save(video_path)
-        s3_url = upload_to_s3(video_path, "video/mp4")
-        return { "s3_url": s3_url }
+        model = loaded_models[model_id]
+        output = model(prompt=prompt, num_frames=16)
+
+        out_path = "output.mp4"
+        output.save(out_path)
+        s3_url = upload_to_s3(out_path, "video/mp4")
+
+        return { "url": s3_url }
 
     elif task == "image-to-video":
         if not image_b64:
             return {"error": "Missing 'image' input for image-to-video task."}
-        init_image = decode_image(image_b64)
-
-        # Save image locally for models that expect file input
-        input_image_path = "input.png"
-        init_image.save(input_image_path)
+        input_image = decode_image(image_b64)
+        input_image.save(input_image_path)
 
         if model_id not in loaded_models:
-            pipe = AutoPipelineForText2Image.from_pretrained(model_id, torch_dtype=torch_dtype)
-            pipe = pipe.to("cuda" if torch.cuda.is_available() else "cpu")
-            loaded_models[model_id] = pipe
+            model = AutoPipelineForText2Image.from_pretrained(model_id, torch_dtype=torch_dtype)
+            model.to(device)
+            loaded_models[model_id] = model
 
-        pipe = loaded_models[model_id]
+        model = loaded_models[model_id]
 
-        output = pipe(image=input_image_path, num_frames=16)
-        video_path = "output.mp4"
-        output.save(video_path)
-        s3_url = upload_to_s3(video_path, "video/mp4")
-        return { "s3_url": s3_url }
+        output = model(image=input_image_path, num_frames=16)
+        output_path = "output.mp4"
+        output.save(output_path)
+        s3_url = upload_to_s3(output_path, "video/mp4")
+
+        return { "url": s3_url }
 
     else:
         return { "error": f"Unsupported task: {task}" }
