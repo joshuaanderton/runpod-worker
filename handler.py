@@ -26,7 +26,7 @@ def encode_image(pil_image):
 def encode_video(video_path):
     with open(video_path, "rb") as f:
         return base64.b64encode(f.read()).decode("utf-8")
-        
+
 def get_valid_kwargs(pipe, input_data):
     """Filter input_data to only the kwargs accepted by the pipeline."""
     valid_keys = pipe.__call__.__code__.co_varnames
@@ -78,7 +78,7 @@ def handler(event):
         video_path = "output.mp4"
         output.save(video_path)
         return { "video_base64": encode_video(video_path) }
-        
+
     elif task == "image-to-video":
         if not image_b64:
             return {"error": "Missing 'image' input for image-to-video task."}
@@ -104,4 +104,6 @@ def handler(event):
     else:
         return { "error": f"Unsupported task: {task}" }
 
-runpod.serverless.start({"handler": handler})
+# Start the Serverless function when the script is run
+if __name__ == '__main__':
+    runpod.serverless.start({'handler': handler })
