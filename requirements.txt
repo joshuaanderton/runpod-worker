@@ -10,3 +10,4 @@ accelerate
 safetensors
 pillow
 boto3
+hf_transfer
