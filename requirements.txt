@@ -8,3 +8,4 @@ diffusers
 transformers
 accelerate
 safetensors
+hf_transfer
