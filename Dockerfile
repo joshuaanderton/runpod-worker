@@ -1,14 +1,12 @@
-FROM python:3.10
+FROM python:3.10-slim
 
 WORKDIR /
 
 # Install dependencies
-COPY requirements.txt /requirements.txt
+RUN pip install -r requirements.txt --no-cache-dir
 
-RUN uv pip install --upgrade -r /requirements.txt --no-cache-dir --system
-
-# Add files
+# Copy your handler file
 COPY handler.py /
 
-# Run the handler
-CMD python -u /handler.py
+# Start the container
+CMD ["python3", "-u", "handler.py"]
