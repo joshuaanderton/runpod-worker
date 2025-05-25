@@ -4,6 +4,9 @@ import base64
 import io
 import torch
 from PIL import Image
+import boto3
+import uuid
+from pathlib import Path
 
 from diffusers import (
     AutoPipelineForImage2Image,
@@ -32,6 +35,19 @@ def get_valid_kwargs(pipe, input_data):
     valid_keys = pipe.__call__.__code__.co_varnames
     return {k: v for k, v in input_data.items() if k in valid_keys}
 
+def upload_to_s3(file_path, file_type):
+    s3 = boto3.client("s3")
+    bucket = os.environ["AWS_S3_BUCKET"]
+    key = f"outputs/{uuid.uuid4()}{Path(file_path).suffix}"
+
+    s3.upload_file(file_path, bucket, key, ExtraArgs={
+        "ContentType": f"{file_type}",
+        "ACL": "public-read"
+    })
+
+    region = os.getenv("AWS_REGION", "us-east-1")
+    return f"https://{bucket}.s3.{region}.amazonaws.com/{key}"
+
 def handler(event):
     task = event['input'].get('task')       # text-to-image, image-to-image, image-to-video
     model_id = event['input'].get('model')  # e.g., runwayml/stable-diffusion-v1-5
@@ -52,7 +68,10 @@ def handler(event):
             loaded_models[model_id] = pipe
         pipe = loaded_models[model_id]
         result = pipe(prompt).images[0]
-        return { "image_base64": encode_image(result) }
+        out_path = "output.png"
+        result.save(out_path)
+        s3_url = upload_to_s3(out_path, "image/png")
+        return { "s3_url": s3_url }
 
     elif task == "image-to-image":
         if not image_b64:
@@ -65,7 +84,10 @@ def handler(event):
             loaded_models[model_id] = pipe
         pipe = loaded_models[model_id]
         result = pipe(prompt=prompt, image=init_image, strength=0.75, guidance_scale=7.5).images[0]
-        return { "image_base64": encode_image(result) }
+        out_path = "output.png"
+        result.save(out_path)
+        s3_url = upload_to_s3(out_path, "image/png")
+        return { "s3_url": s3_url }
 
     elif task == "text-to-video" or task == "image-to-video":
         if model_id not in loaded_models:
@@ -80,7 +102,8 @@ def handler(event):
         output = pipe(prompt=prompt, num_frames=16)
         video_path = "output.mp4"
         output.save(video_path)
-        return { "video_base64": encode_video(video_path) }
+        s3_url = upload_to_s3(video_path, "video/mp4")
+        return { "s3_url": s3_url }
 
     elif task == "image-to-video":
         if not image_b64:
@@ -101,8 +124,8 @@ def handler(event):
         output = pipe(image=input_image_path, num_frames=16)
         video_path = "output.mp4"
         output.save(video_path)
-
-        return { "video_base64": encode_video(video_path) }
+        s3_url = upload_to_s3(video_path, "video/mp4")
+        return { "s3_url": s3_url }
 
     else:
         return { "error": f"Unsupported task: {task}" }

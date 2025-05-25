@@ -4,8 +4,9 @@ runpod~=1.7.9
 torch
 torchvision
 torchaudio
-diffusers
 transformers
+diffusers
 accelerate
 safetensors
-hf_transfer
+pillow
+boto3
