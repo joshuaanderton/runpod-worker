@@ -6,9 +6,9 @@ import torch
 from PIL import Image
 
 from diffusers import (
-    StableDiffusionPipeline,
     AutoPipelineForImage2Image,
-    AutoPipelineForText2Video
+    AutoPipelineForText2Image,
+    WanPipeline
 )
 
 # Global model cache
@@ -33,11 +33,11 @@ def get_valid_kwargs(pipe, input_data):
     return {k: v for k, v in input_data.items() if k in valid_keys}
 
 def handler(event):
-    task = event['input'].get('task')              # text-to-image, image-to-image, image-to-video
-    model_id = event['input'].get('model')         # e.g., runwayml/stable-diffusion-v1-5
-    prompt = event['input'].get('prompt')          # Prompt text
-    image_b64 = event['input'].get('image')        # base64 image input (optional)
-    seed = event['input'].get('seed', None)
+    task = event['input'].get('task')       # text-to-image, image-to-image, image-to-video
+    model_id = event['input'].get('model')  # e.g., runwayml/stable-diffusion-v1-5
+    prompt = event['input'].get('prompt')   # Prompt text
+    image_b64 = event['input'].get('image') # base64 image input (optional)
+    seed = event['input'].get('seed', -1)   # Random seed (optional)
     #kwargs = get_valid_kwargs(pipe, event["input"])
 
     if not task or not model_id or not prompt:
@@ -47,7 +47,7 @@ def handler(event):
 
     if task == "text-to-image":
         if model_id not in loaded_models:
-            pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch_dtype)
+            pipe = AutoPipelineForText2Image.from_pretrained(model_id, torch_dtype=torch_dtype)
             pipe = pipe.to("cuda" if torch.cuda.is_available() else "cpu")
             loaded_models[model_id] = pipe
         pipe = loaded_models[model_id]
@@ -69,7 +69,7 @@ def handler(event):
 
     elif task == "text-to-video" or task == "image-to-video":
         if model_id not in loaded_models:
-            pipe = AutoPipelineForText2Video.from_pretrained(model_id, torch_dtype=torch_dtype)
+            pipe = WanPipeline.from_pretrained(model_id, torch_dtype=torch_dtype)
             pipe = pipe.to("cuda" if torch.cuda.is_available() else "cpu")
             loaded_models[model_id] = pipe
         pipe = loaded_models[model_id]
@@ -89,7 +89,7 @@ def handler(event):
         init_image.save(input_image_path)
 
         if model_id not in loaded_models:
-            pipe = AutoPipelineForText2Video.from_pretrained(model_id, torch_dtype=torch_dtype)
+            pipe = AutoPipelineForText2Image.from_pretrained(model_id, torch_dtype=torch_dtype)
             pipe = pipe.to("cuda" if torch.cuda.is_available() else "cpu")
             loaded_models[model_id] = pipe
 

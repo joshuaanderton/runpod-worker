@@ -1,11 +1,11 @@
-FROM python:3.10-slim
+FROM python:3.10
 
 WORKDIR /
 
 # Install dependencies
 COPY requirements.txt /requirements.txt
 
-RUN uv pip install --upgrade -r /requirements.txt --no-cache-dir --system
+RUN pip3.10 install --upgrade -r /requirements.txt --no-cache-dir --system
 
 # Add files
 COPY handler.py /

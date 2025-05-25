@@ -1,7 +1,8 @@
 {
   "input": {
     "task": "text-to-video",
-    "model": "Wan-AI/Wan2.1-VACE-14B",
-    "prompt": "a fantasy forest at dawn"
+    "model": "Wan-AI/Wan2.1-T2V-14B-Diffusers",
+    "prompt": "a fantasy forest at dawn",
+    "seed": -1
   }
 }
