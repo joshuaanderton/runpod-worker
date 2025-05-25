@@ -36,17 +36,18 @@ def get_valid_kwargs(pipe, input_data):
     return {k: v for k, v in input_data.items() if k in valid_keys}
 
 def upload_to_s3(file_path, file_type):
-    s3 = boto3.client("s3")
-    bucket = os.environ["AWS_S3_BUCKET"]
+    # endpoint = os.environ["AWS_ENDPOINT"]
+    bucket = os.environ["AWS_BUCKET"]
+    url = os.environ["AWS_URL"]
     key = f"outputs/{uuid.uuid4()}{Path(file_path).suffix}"
 
+    s3 = boto3.client("s3")
     s3.upload_file(file_path, bucket, key, ExtraArgs={
         "ContentType": f"{file_type}",
         "ACL": "public-read"
     })
 
-    region = os.getenv("AWS_REGION", "us-east-1")
-    return f"https://{bucket}.s3.{region}.amazonaws.com/{key}"
+    return f"{url}/{bucket}/{key}"
 
 def handler(event):
     task = event['input'].get('task')       # text-to-image, image-to-image, image-to-video
