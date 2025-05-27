@@ -10,6 +10,7 @@ from pathlib import Path
 from diffusers import (
     AutoPipelineForImage2Image,
     AutoPipelineForText2Image,
+    FluxPipeline,
     WanPipeline,
     AutoencoderKLWan
 )
@@ -62,7 +63,10 @@ def handler(event):
 
     if task == "text-to-image":
         if model_id not in loaded_models:
-            model = AutoPipelineForText2Image.from_pretrained(model_id, torch_dtype=torch_dtype)
+            if model_id.startswith("black-forest-labs/FLUX"):
+                model = FluxPipeline.from_pretrained(model_id, torch_dtype=torch_dtype)
+            else:
+                model = AutoPipelineForText2Image.from_pretrained(model_id, torch_dtype=torch_dtype)
             model.to(device)
             loaded_models[model_id] = model
 
