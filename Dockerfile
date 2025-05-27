@@ -6,8 +6,6 @@ RUN ln -sf $(which python3.11) /usr/local/bin/python && \
 
 WORKDIR /
 
-ENV HF_HUB_ENABLE_HF_TRANSFER=false
-
 # Install dependencies
 COPY requirements.txt /requirements.txt
 RUN uv pip install --upgrade -r /requirements.txt --no-cache-dir --system

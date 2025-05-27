@@ -7,6 +7,7 @@ from PIL import Image
 import boto3
 import uuid
 from pathlib import Path
+# from huggingface_hub import login
 
 from diffusers import (
     AutoPipelineForImage2Image,
@@ -16,7 +17,9 @@ from diffusers import (
 
 # Global model cache
 loaded_models = {}
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Login to Hugging Face Hub just in case
+# login(token=os.environ["HUGGING_FACE_ACCESS_TOKEN"])
 
 def decode_image(b64_string):
     image_data = base64.b64decode(b64_string)
@@ -62,7 +65,9 @@ def handler(event):
     if not task or not model_id or not prompt:
         return {"error": "Missing required fields: 'task', 'model', or 'prompt'"}
 
-    torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
+    # Setup device
+    device = torch.device("cuda")
+    torch_dtype = torch.float16
 
     if task == "text-to-image":
         if model_id not in loaded_models:
