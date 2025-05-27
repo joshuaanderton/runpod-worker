@@ -4,9 +4,10 @@ import base64
 import io
 import torch
 from PIL import Image
-import boto3
 import uuid
 from pathlib import Path
+import boto3
+import os
 from diffusers import (
     AutoPipelineForImage2Image,
     AutoPipelineForText2Image,
@@ -15,7 +16,8 @@ from diffusers import (
     AutoencoderKLWan
 )
 from diffusers.utils import (
-    export_to_video, load_image
+    export_to_video,
+    load_image
 )
 
 # Global model cache
@@ -26,19 +28,24 @@ def get_valid_kwargs(pipe, input_data):
     valid_keys = pipe.__call__.__code__.co_varnames
     return {k: v for k, v in input_data.items() if k in valid_keys}
 
-def upload_to_s3(file_path, file_type):
-    # endpoint = os.environ["AWS_ENDPOINT"]
+def upload_to_cloud(file_path):
     bucket = os.environ["AWS_BUCKET"]
-    url = os.environ["AWS_URL"]
     key = f"outputs/{uuid.uuid4()}{Path(file_path).suffix}"
 
-    s3 = boto3.client("s3")
-    s3.upload_file(file_path, bucket, key, ExtraArgs={
-        "ContentType": f"{file_type}",
-        "ACL": "public-read"
-    })
+    # Upload to AWS S3 or DO Spaces
+    session = boto3.session.Session()
+    client = session.client(
+        's3',
+        region_name=os.environ["AWS_REGION"],
+        endpoint_url=os.environ["AWS_ENDPOINT_URL"],
+        aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+        aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+    )
 
-    return f"{url}/{bucket}/{key}"
+    # Upload the file
+    response = client.upload_file(file_path, bucket, key)
+
+    return f"{os.environ["AWS_URL"]}/{bucket}/{key}"
 
 def handler(event):
     #kwargs = get_valid_kwargs(pipe, event["input"])
@@ -75,7 +82,7 @@ def handler(event):
 
         out_path = "output.png"
         output.save(out_path)
-        s3_url = upload_to_s3(out_path, "image/png")
+        s3_url = upload_to_cloud(out_path, "image/png")
 
         return { "url": s3_url }
 
@@ -95,7 +102,7 @@ def handler(event):
 
         out_path = "output.png"
         output.save(out_path)
-        s3_url = upload_to_s3(out_path, "image/png")
+        s3_url = upload_to_cloud(out_path, "image/png")
 
         return { "url": s3_url }
 
@@ -121,7 +128,7 @@ def handler(event):
             guidance_scale=guidance_scale,
         ).frames[0]
         export_to_video(frames, out_path, fps=16)
-        s3_url = upload_to_s3(out_path, "video/mp4")
+        s3_url = upload_to_cloud(out_path, "video/mp4")
 
         return { "url": s3_url }
 
@@ -161,7 +168,7 @@ def handler(event):
         ).frames[0]
         output_path = "output.mp4"
         export_to_video(output, output_path, fps=16)
-        s3_url = upload_to_s3(output_path, "video/mp4")
+        s3_url = upload_to_cloud(output_path, "video/mp4")
 
         return { "url": s3_url }
 
