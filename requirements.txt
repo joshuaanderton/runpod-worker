@@ -11,3 +11,4 @@ safetensors
 pillow
 boto3
 hf_transfer
+ftfy
