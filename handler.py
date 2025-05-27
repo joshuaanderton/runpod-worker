@@ -30,7 +30,7 @@ def get_valid_kwargs(pipe, input_data):
 
 def upload_to_cloud(file_path):
     bucket = os.environ["AWS_BUCKET"]
-    key = f"outputs/{uuid.uuid4()}{Path(file_path).suffix}"
+    key = f"outputs/{file_path}"
 
     # Upload to AWS S3 or DO Spaces
     session = boto3.session.Session()
@@ -61,8 +61,10 @@ def handler(event):
     guidance_scale = event['input'].get('guidance_scale', 5.0)  # Guidance scale for generation (optional)
     negative_prompt = event['input'].get('negative_prompt', "Bright tones, overexposed, static, blurred details, subtitles, style, works, paintings, images, static, overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, misshapen limbs, fused fingers, still picture, messy background, three legs, many people in the background, walking backwards")
 
+    output_name = uuid.uuid4()
+
     if not task or not model_id or not prompt:
-        return {"error": "Missing required fields: 'task', 'model', or 'prompt'"}
+        return { "error": "Missing required fields: 'task', 'model', or 'prompt'" }
 
     # Setup device
     device = torch.device("cuda")
@@ -80,15 +82,15 @@ def handler(event):
         model = loaded_models[model_id]
         output = model(prompt).images[0]
 
-        out_path = "output.png"
-        output.save(out_path)
-        s3_url = upload_to_cloud(out_path, "image/png")
+        output_path = f"{output_name}.png"
+        output.save(output_path)
+        s3_url = upload_to_cloud(output_path, "image/png")
 
         return { "url": s3_url }
 
     elif task == "image-to-image":
         if not image_url:
-            return {"error": "Missing 'image_url' input for image-to-video task."}
+            return { "error": "Missing 'image_url' input for image-to-video task." }
 
         input_image = load_image(image_url)
 
@@ -100,9 +102,9 @@ def handler(event):
         model = loaded_models[model_id]
         output = model(prompt=prompt, image=input_image, strength=0.75, guidance_scale=7.5).images[0]
 
-        out_path = "output.png"
-        output.save(out_path)
-        s3_url = upload_to_cloud(out_path, "image/png")
+        output_path = f"{output_name}.png"
+        output.save(output_path)
+        s3_url = upload_to_cloud(output_path, "image/png")
 
         return { "url": s3_url }
 
@@ -118,7 +120,7 @@ def handler(event):
 
         model = loaded_models[model_id]
 
-        out_path = "output.mp4"
+        output_path = f"{output_name}.mp4"
         frames = pipe(
             prompt=prompt,
             negative_prompt=negative_prompt,
@@ -127,15 +129,15 @@ def handler(event):
             num_frames=num_frames,
             guidance_scale=guidance_scale,
         ).frames[0]
-        export_to_video(frames, out_path, fps=16)
-        s3_url = upload_to_cloud(out_path, "video/mp4")
+        export_to_video(frames, output_path, fps=16)
+        s3_url = upload_to_cloud(output_path, "video/mp4")
 
         return { "url": s3_url }
 
     elif task == "image-to-video":
 
         if not image_url:
-            return {"error": "Missing 'image_url' input for image-to-video task."}
+            return { "error": "Missing 'image_url' input for image-to-video task." }
 
         input_image = load_image(image_url)
 
@@ -166,7 +168,7 @@ def handler(event):
             num_frames=num_frames,
             guidance_scale=guidance_scale,
         ).frames[0]
-        output_path = "output.mp4"
+        output_path = "{output_name}.mp4"
         export_to_video(output, output_path, fps=16)
         s3_url = upload_to_cloud(output_path, "video/mp4")
 
