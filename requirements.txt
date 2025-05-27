@@ -12,3 +12,5 @@ pillow
 boto3
 hf_transfer
 ftfy
+imageio-ffmpeg
+imageio
