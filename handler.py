@@ -121,7 +121,7 @@ def handler(event):
         model = loaded_models[model_id]
 
         output_path = f"{output_name}.mp4"
-        frames = pipe(
+        frames = model(
             prompt=prompt,
             negative_prompt=negative_prompt,
             height=height,
@@ -159,7 +159,7 @@ def handler(event):
         width = round(np.sqrt(max_area / aspect_ratio)) // mod_value * mod_value
         image = image.resize((width, height))
 
-        frames = pipe(
+        frames = model(
             image=image,
             prompt=prompt,
             negative_prompt=negative_prompt,
