@@ -10,7 +10,8 @@ accelerate
 safetensors
 pillow
 boto3
-hf_transfer
 ftfy
 imageio-ffmpeg
 imageio
+accelerate
+huggingface_hub
