@@ -55,16 +55,14 @@ def upload_to_cloud(file_path):
 
     # Upload to AWS S3 or DO Spaces
     session = boto3.session.Session()
-    client = session.client(
-        's3',
-        region_name=os.environ.get("AWS_REGION", None),
-        endpoint_url=os.environ.get("AWS_ENDPOINT_URL", None),
-        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID", None),
-        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY", None)
-    )
+    client = session.client('s3',
+                            region_name=os.getenv('AWS_REGION'),
+                            endpoint_url=os.getenv('AWS_ENDPOINT_URL'),
+                            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+                            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'))
 
     # Upload the file
-    response = client.upload_file(file_path, bucket, key)
+    client.upload_file(file_path, bucket, key)
 
     return f"{os.environ['AWS_URL']}/{bucket}/{key}"
 
