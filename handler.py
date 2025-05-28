@@ -112,7 +112,7 @@ def handler(event):
             guidance_scale=guidance_scale,
         ).frames[0]
 
-        output_path = "{output_name}.mp4"
+        output_path = f"{output_name}.mp4"
         export_to_video(output, output_path, fps=16)
 
     elif task == "image-to-video":
@@ -138,7 +138,7 @@ def handler(event):
             guidance_scale=guidance_scale,
         ).frames[0]
 
-        output_path = "{output_name}.mp4"
+        output_path = f"{output_name}.mp4"
         export_to_video(output, output_path, fps=16)
 
     url = upload_to_cloud(output_path)
