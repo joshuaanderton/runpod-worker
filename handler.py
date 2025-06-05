@@ -1,11 +1,7 @@
 import runpod
 import os
-import base64
-import io
 import torch
-from PIL import Image
 import uuid
-from pathlib import Path
 import boto3
 import os
 from diffusers import (
@@ -30,7 +26,7 @@ def get_model(model_id, task):
 
     if task.endswith("-image"):
         if model_id.startswith("black-forest-labs/FLUX"):
-            model = FluxPipeline.from_pretrained(model_id, torch_dtype=torch_dtype)
+            model = FluxPipeline.from_pretrained(model_id, torch_dtype=torch.bfloat16)
         elif task == "text-to-image":
             model = AutoPipelineForText2Image.from_pretrained(model_id, torch_dtype=torch.bfloat16)
         elif task == "image-to-image":
