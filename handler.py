@@ -24,7 +24,7 @@ from huggingface_hub import login
 # Global model cache
 loaded_models = {}
 
-login(token=os.getenv("HUGGING_FACE_ACCESS_TOKEN"))
+login(token=os.environ["HF_HUB_ACCESS_TOKEN"])
 
 def get_model(model_id, task):
 
@@ -56,10 +56,10 @@ def upload_to_cloud(file_path):
     # Upload to AWS S3 or DO Spaces
     session = boto3.session.Session()
     client = session.client('s3',
-                            region_name=os.getenv('AWS_REGION'),
-                            endpoint_url=os.getenv('AWS_ENDPOINT_URL'),
-                            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-                            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'))
+                            region_name=os.environ["AWS_REGION"],
+                            endpoint_url=os.environ["AWS_ENDPOINT_URL"],
+                            aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+                            aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"])
 
     # Upload the file
     client.upload_file(file_path, bucket, key)
@@ -91,7 +91,8 @@ def handler(event):
 
     if task == "text-to-image":
         output_path = f"{output_name}.png"
-        model(prompt).images[0].save(output_path)
+        output = model(prompt=prompt).images[0]
+        output.save(output_path)
 
     elif task == "image-to-image":
         if not image_url:
@@ -113,7 +114,7 @@ def handler(event):
         ).frames[0]
 
         output_path = f"{output_name}.mp4"
-        export_to_video(output, output_path, fps=16)
+        export_to_video(frames, output_path, fps=16)
 
     elif task == "image-to-video":
 
@@ -139,7 +140,7 @@ def handler(event):
         ).frames[0]
 
         output_path = f"{output_name}.mp4"
-        export_to_video(output, output_path, fps=16)
+        export_to_video(frames, output_path, fps=16)
 
     url = upload_to_cloud(output_path)
     return { "url": url }
