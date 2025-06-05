@@ -19,12 +19,9 @@ from diffusers.utils import (
     export_to_video,
     load_image
 )
-# from huggingface_hub import login
 
 # Global model cache
 loaded_models = {}
-
-# login(token=os.getenv("HF_HUB_ACCESS_TOKEN"))
 
 def get_model(model_id, task):
 
@@ -55,14 +52,16 @@ def upload_to_cloud(file_path):
 
     # Upload to AWS S3 or DO Spaces
     session = boto3.session.Session()
-    client = session.client('s3',
-                            region_name=os.getenv("AWS_REGION"),
-                            endpoint_url=os.getenv("AWS_ENDPOINT_URL"),
-                            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-                            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"))
+    client = session.client(
+        's3',
+        region_name=os.getenv("AWS_REGION"),
+        endpoint_url=os.getenv("AWS_ENDPOINT_URL"),
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+    )
 
     # Upload the file
-    client.upload_file(file_path, bucket, key)
+    client.upload_file(file_path, bucket, key, ExtraArgs={'ACL': 'public-read'})
 
     return f"{os.getenv('AWS_URL')}/{bucket}/{key}"
 
