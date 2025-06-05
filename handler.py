@@ -19,12 +19,12 @@ from diffusers.utils import (
     export_to_video,
     load_image
 )
-from huggingface_hub import login
+# from huggingface_hub import login
 
 # Global model cache
 loaded_models = {}
 
-login(token=os.getenv("HF_HUB_ACCESS_TOKEN"))
+# login(token=os.getenv("HF_HUB_ACCESS_TOKEN"))
 
 def get_model(model_id, task):
 
