@@ -24,7 +24,7 @@ from huggingface_hub import login
 # Global model cache
 loaded_models = {}
 
-login(token=os.environ["HF_HUB_ACCESS_TOKEN"])
+login(token=os.getenv("HF_HUB_ACCESS_TOKEN"))
 
 def get_model(model_id, task):
 
@@ -50,21 +50,21 @@ def get_model(model_id, task):
     return model
 
 def upload_to_cloud(file_path):
-    bucket = os.environ["AWS_BUCKET"]
+    bucket = os.getenv("AWS_BUCKET")
     key = f"outputs/{file_path}"
 
     # Upload to AWS S3 or DO Spaces
     session = boto3.session.Session()
     client = session.client('s3',
-                            region_name=os.environ["AWS_REGION"],
-                            endpoint_url=os.environ["AWS_ENDPOINT_URL"],
-                            aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
-                            aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"])
+                            region_name=os.getenv("AWS_REGION"),
+                            endpoint_url=os.getenv("AWS_ENDPOINT_URL"),
+                            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+                            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"))
 
     # Upload the file
     client.upload_file(file_path, bucket, key)
 
-    return f"{os.environ['AWS_URL']}/{bucket}/{key}"
+    return f"{os.getenv('AWS_URL')}/{bucket}/{key}"
 
 def handler(event):
     task = event['input'].get('task')                           # text-to-image, image-to-image, image-to-video
