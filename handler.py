@@ -57,7 +57,15 @@ def upload_to_cloud(file_path, file_type):
     )
 
     # Upload the file
-    client.upload_file(file_path, bucket, key, ExtraArgs={'ACL': 'public-read', 'ContentType': file_type})
+    client.upload_file(
+        file_path,
+        bucket,
+        key,
+        ExtraArgs={
+            "ACL": "public-read",
+            "ContentType": file_type
+        }
+    )
 
     return f"{os.getenv('AWS_URL')}/{bucket}/{key}"
 
@@ -109,7 +117,7 @@ def handler(event):
         ).frames[0]
 
         output_path = f"{output_name}.mp4"
-        output_type = "video/mpeg"
+        output_type = "video/mp4"
         export_to_video(frames, output_path, fps=16)
 
     elif task == "image-to-video":
@@ -136,7 +144,7 @@ def handler(event):
         ).frames[0]
 
         output_path = f"{output_name}.mp4"
-        output_type = "video/mpeg"
+        output_type = "video/mp4"
         export_to_video(frames, output_path, fps=16)
 
     url = upload_to_cloud(output_path, output_type)
