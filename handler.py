@@ -42,10 +42,12 @@ def get_model(model_id, task):
     loaded_models[model_id] = model
     return model
 
-def upload_to_cloud(file_path):
+def upload_to_cloud(file_path, file_type="image/png"):
     bucket = os.getenv("AWS_BUCKET")
     key = f"outputs/{file_path}"
-    file_type = file_path.endswith('.mp4') and 'video/mp4' or 'image/png'
+
+    if file_path.endswith('.mp4'):
+        file_type = 'video/mp4'
 
     # Upload to AWS S3 or DO Spaces
     session = boto3.session.Session()
