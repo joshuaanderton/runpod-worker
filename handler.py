@@ -45,6 +45,7 @@ def get_model(model_id, task):
 def upload_to_cloud(file_path):
     bucket = os.getenv("AWS_BUCKET")
     key = f"outputs/{file_path}"
+    file_type = file_path.endswith('.mp4') and 'video/mp4' or 'image/png'
 
     # Upload to AWS S3 or DO Spaces
     session = boto3.session.Session()
@@ -57,7 +58,7 @@ def upload_to_cloud(file_path):
     )
 
     # Upload the file
-    client.upload_file(file_path, bucket, key, ExtraArgs={'ACL': 'public-read'})
+    client.upload_file(file_path, bucket, key, ExtraArgs={'ACL': 'public-read', 'ContentType': file_type})
 
     return f"{os.getenv('AWS_URL')}/{bucket}/{key}"
 
@@ -80,7 +81,6 @@ def handler(event):
     if not task or not model_id or not prompt:
         return { "error": "Missing required fields: 'task', 'model', or 'prompt'" }
 
-    torch_dtype = torch.bfloat16
     model = get_model(model_id, task)
     model.to(torch.device("cuda"))
 
