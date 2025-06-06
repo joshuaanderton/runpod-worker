@@ -42,12 +42,9 @@ def get_model(model_id, task):
     loaded_models[model_id] = model
     return model
 
-def upload_to_cloud(file_path, file_type="image/png"):
+def upload_to_cloud(file_path, file_type):
     bucket = os.getenv("AWS_BUCKET")
     key = f"outputs/{file_path}"
-
-    if file_path.endswith('.mp4'):
-        file_type = 'video/mp4'
 
     # Upload to AWS S3 or DO Spaces
     session = boto3.session.Session()
@@ -79,6 +76,7 @@ def handler(event):
 
     output_name = uuid.uuid4()
     output_path = f"{output_name}.png"
+    output_type = "image/png" # Default output type
 
     if not task or not model_id or not prompt:
         return { "error": "Missing required fields: 'task', 'model', or 'prompt'" }
@@ -111,6 +109,7 @@ def handler(event):
         ).frames[0]
 
         output_path = f"{output_name}.mp4"
+        output_type = "video/mpeg"
         export_to_video(frames, output_path, fps=16)
 
     elif task == "image-to-video":
@@ -137,9 +136,10 @@ def handler(event):
         ).frames[0]
 
         output_path = f"{output_name}.mp4"
+        output_type = "video/mpeg"
         export_to_video(frames, output_path, fps=16)
 
-    url = upload_to_cloud(output_path)
+    url = upload_to_cloud(output_path, output_type)
     return { "url": url }
 
 # Start the Serverless function when the script is run
