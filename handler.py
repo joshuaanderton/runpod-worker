@@ -19,6 +19,96 @@ from diffusers.utils import (
 # Global model cache
 loaded_models = {}
 
+def handler(event):
+    output_name = f"outputs/{uuid.uuid4()}"
+
+    input = event['input']
+    task = input.get('task')                           # text-to-image, image-to-image, image-to-video
+    model_id = input.get('model')                      # e.g., runwayml/stable-diffusion-v1-5
+
+    if not task or not model_id:
+        return {
+            "url": None,
+            "error": "Missing required fields: 'task' and 'model'"
+        }
+
+    model = get_model(model_id, task)
+
+    prompt = input.get('prompt')                       # Prompt text (sometimes required)
+    image_url = input.get("image_url")                 # Image URL input (sometimes required)
+
+    if task.startswith("text-") and not prompt:
+        return {
+            "url": None,
+            "error": "Missing required field 'prompt'"
+        }
+
+    if task.startswith("image-") and not image_url:
+        return {
+            "url": None,
+            "error": "Missing required field 'image_url'"
+        }
+
+    seed = input.get("seed", -1)                       # Random seed (optional)
+    height = input.get("height", 480)                  # Image height (optional)
+    width = input.get("width", 832)                    # Image width (optional)
+    fps = input.get("fps", 16)                         # Frames per second for video (optional)
+    num_frames = input.get("num_frames", 33)           # Number of frames for video generation (optional)
+    guidance_scale = input.get("guidance_scale", 5.0)  # Guidance scale for generation (optional)
+    negative_prompt = input.get(                       # Negative prompt for image generation (optional)
+        "negative_prompt",
+        "Bright tones, overexposed, static, blurred details, subtitles, style, works, paintings, images, static, overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, misshapen limbs, fused fingers, still picture, messy background, three legs, many people in the background, walking backwards"
+    )
+
+    if task.startswith("image-"):
+        input_image = load_image(image_url)
+
+        max_area = 480 * 832 # Use Wan2.1 480p default "max_area"
+        aspect_ratio = input_image.height / input_image.width
+        mod_value = model.vae_scale_factor_spatial * model.transformer.config.patch_size[1]
+
+        height = round(input_image.sqrt(max_area * aspect_ratio)) // mod_value * mod_value
+        width = round(input_image.sqrt(max_area / aspect_ratio)) // mod_value * mod_value
+        input_image = input_image.resize((width, height))
+    else:
+        input_image = None
+
+    if task.endswith("-image"):
+        output_path = f"{output_name}.png"
+        output_mime_type = "image/png"
+
+        output = model(
+            prompt=prompt,
+            image=input_image,
+            # strength=0.75,
+            negative_prompt=negative_prompt,
+            guidance_scale=guidance_scale,
+        ).images[0]
+
+        output.save(output_path)
+
+    elif task.endswith("-video"):
+        output_path = f"{output_name}.mp4"
+        output_mime_type = "video/mp4"
+
+        frames = model(
+            seed=seed,
+            image=input_image,
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            height=height,
+            width=width,
+            num_frames=num_frames,
+            guidance_scale=guidance_scale,
+        ).frames[0]
+
+        export_to_video(frames, output_path, fps)
+
+    return {
+        "url": upload_to_cloud(output_path, output_mime_type),
+        "error": None
+    }
+
 def get_model(model_id, task):
 
     if model_id in loaded_models:
@@ -39,7 +129,10 @@ def get_model(model_id, task):
         else:
             model = AutoPipelineForText2Image.from_pretrained(model_id, vae=vae, torch_dtype=torch.bfloat16)
 
+    model.to(torch.device("cuda"))
+
     loaded_models[model_id] = model
+
     return model
 
 def upload_to_cloud(file_path, file_type):
@@ -68,87 +161,6 @@ def upload_to_cloud(file_path, file_type):
     )
 
     return f"{os.getenv('AWS_URL')}/{bucket}/{key}"
-
-def handler(event):
-    task = event['input'].get('task')                           # text-to-image, image-to-image, image-to-video
-    model_id = event['input'].get('model')                      # e.g., runwayml/stable-diffusion-v1-5
-
-    prompt = event['input'].get('prompt')                       # Prompt text
-    image_url = event['input'].get('image_url')                 # Image URL input (optional)
-    seed = event['input'].get('seed', -1)                       # Random seed (optional)
-    height = event['input'].get('height', 480)                  # Image height (optional)
-    width = event['input'].get('width', 832)                    # Image height (optional)
-    num_frames = event['input'].get('num_frames', 33)           # Number of frames for video generation (optional)
-    guidance_scale = event['input'].get('guidance_scale', 5.0)  # Guidance scale for generation (optional)
-    negative_prompt = event['input'].get('negative_prompt', "Bright tones, overexposed, static, blurred details, subtitles, style, works, paintings, images, static, overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, misshapen limbs, fused fingers, still picture, messy background, three legs, many people in the background, walking backwards")
-
-    output_name = uuid.uuid4()
-    output_path = f"{output_name}.png"
-    output_type = "image/png" # Default output type
-
-    if not task or not model_id or not prompt:
-        return { "error": "Missing required fields: 'task', 'model', or 'prompt'" }
-
-    model = get_model(model_id, task)
-    model.to(torch.device("cuda"))
-
-    if task == "text-to-image":
-        output_path = f"{output_name}.png"
-        output = model(prompt=prompt).images[0]
-        output.save(output_path)
-
-    elif task == "image-to-image":
-        if not image_url:
-            return { "error": "Missing 'image_url' input for image-to-video task." }
-
-        input_image = load_image(image_url)
-        output = model(prompt=prompt, image=input_image, strength=0.75, guidance_scale=7.5).images[0]
-        output.save(output_path)
-
-    elif task == "text-to-video":
-
-        frames = model(
-            prompt=prompt,
-            negative_prompt=negative_prompt,
-            height=height,
-            width=width,
-            num_frames=num_frames,
-            guidance_scale=guidance_scale,
-        ).frames[0]
-
-        output_path = f"{output_name}.mp4"
-        output_type = "video/mp4"
-        export_to_video(frames, output_path, fps=16)
-
-    elif task == "image-to-video":
-
-        if not image_url:
-            return { "error": "Missing 'image_url' input for image-to-video task." }
-
-        input_image = load_image(image_url)
-        max_area = 480 * 832
-        aspect_ratio = input_image.height / input_image.width
-        mod_value = model.vae_scale_factor_spatial * model.transformer.config.patch_size[1]
-        height = round(np.sqrt(max_area * aspect_ratio)) // mod_value * mod_value
-        width = round(np.sqrt(max_area / aspect_ratio)) // mod_value * mod_value
-        image = input_image.resize((width, height))
-
-        frames = model(
-            image=input_image,
-            prompt=prompt,
-            negative_prompt=negative_prompt,
-            height=height,
-            width=width,
-            num_frames=num_frames,
-            guidance_scale=guidance_scale,
-        ).frames[0]
-
-        output_path = f"{output_name}.mp4"
-        output_type = "video/mp4"
-        export_to_video(frames, output_path, fps=16)
-
-    url = upload_to_cloud(output_path, output_type)
-    return { "url": url }
 
 # Start the Serverless function when the script is run
 if __name__ == '__main__':
