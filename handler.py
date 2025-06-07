@@ -31,7 +31,10 @@ def handler(event):
             "error": "HF_TOKEN is not set in environment variables."
         }
 
-    huggingface_hub.login(token=hf_token, add_to_git_credential=False)
+    huggingface_hub.login(
+        token=hf_token,
+        add_to_git_credential=False
+    )
 
     input = event['input']
     task = input.get('task')      # text-to-image, image-to-image, image-to-video
