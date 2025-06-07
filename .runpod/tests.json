@@ -1,7 +1,7 @@
 {
   "tests": [
     {
-      "name": "basic_test",
+      "name": "text_to_video_test",
       "input": {
         "task": "text-to-video",
         "model": "Wan-AI/Wan2.1-T2V-1.3B-Diffusers",

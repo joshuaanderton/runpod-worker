@@ -7,6 +7,7 @@ import os
 from diffusers import (
     AutoPipelineForText2Image,
     AutoPipelineForImage2Image,
+    DiffusionPipeline,
     FluxPipeline,
     WanPipeline,
     AutoencoderKLWan
@@ -15,16 +16,26 @@ from diffusers.utils import (
     export_to_video,
     load_image
 )
+import huggingface_hub
 
 # Global model cache
 loaded_models = {}
 
 def handler(event):
     output_name = f"outputs/{uuid.uuid4()}"
+    hf_token = os.getenv("HF_TOKEN")
+
+    if not hf_token:
+        return {
+            "url": None,
+            "error": "HF_TOKEN is not set in environment variables."
+        }
+
+    huggingface_hub.login(token=hf_token, add_to_git_credential=False)
 
     input = event['input']
-    task = input.get('task')                           # text-to-image, image-to-image, image-to-video
-    model_id = input.get('model')                      # e.g., runwayml/stable-diffusion-v1-5
+    task = input.get('task')      # text-to-image, image-to-image, image-to-video
+    model_id = input.get('model') # e.g., runwayml/stable-diffusion-v1-5
 
     if not task or not model_id:
         return {
@@ -34,8 +45,8 @@ def handler(event):
 
     model = get_model(model_id, task)
 
-    prompt = input.get('prompt')                       # Prompt text (sometimes required)
-    image_url = input.get("image_url")                 # Image URL input (sometimes required)
+    prompt = input.get('prompt')       # Prompt text (sometimes required)
+    image_url = input.get("image_url") # Image URL input (sometimes required)
 
     if task.startswith("text-") and not prompt:
         return {
@@ -75,7 +86,6 @@ def handler(event):
 
     if task.endswith("-image"):
         output_path = f"{output_name}.png"
-        output_mime_type = "image/png"
 
         output = model(
             prompt=prompt,
@@ -89,7 +99,6 @@ def handler(event):
 
     elif task.endswith("-video"):
         output_path = f"{output_name}.mp4"
-        output_mime_type = "video/mp4"
 
         frames = model(
             seed=seed,
@@ -105,7 +114,7 @@ def handler(event):
         export_to_video(frames, output_path, fps)
 
     return {
-        "url": upload_to_cloud(output_path, output_mime_type),
+        "url": upload_to_cloud(output_path),
         "error": None
     }
 
@@ -116,7 +125,7 @@ def get_model(model_id, task):
 
     if task.endswith("-image"):
         if model_id.startswith("black-forest-labs/FLUX"):
-            model = FluxPipeline.from_pretrained(model_id, torch_dtype=torch.bfloat16)
+            model = DiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.bfloat16)
         elif task == "text-to-image":
             model = AutoPipelineForText2Image.from_pretrained(model_id, torch_dtype=torch.bfloat16)
         elif task == "image-to-image":
@@ -135,9 +144,14 @@ def get_model(model_id, task):
 
     return model
 
-def upload_to_cloud(file_path, file_type):
+def upload_to_cloud(file_path):
     bucket = os.getenv("AWS_BUCKET")
     key = f"outputs/{file_path}"
+
+    if file_path.endswith(".mp4"):
+        mime_type = "video/mp4"
+    elif file_path.endswith(".png"):
+        mime_type = "image/png"
 
     # Upload to AWS S3 or DO Spaces
     session = boto3.session.Session()
@@ -156,7 +170,7 @@ def upload_to_cloud(file_path, file_type):
         key,
         ExtraArgs={
             "ACL": "public-read",
-            "ContentType": file_type
+            "ContentType": mime_type
         }
     )
 
