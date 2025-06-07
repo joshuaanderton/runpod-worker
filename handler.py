@@ -17,24 +17,20 @@ from diffusers.utils import (
     load_image
 )
 import huggingface_hub
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Global model cache
 loaded_models = {}
 
 def handler(event):
     output_name = f"outputs/{uuid.uuid4()}"
-    hf_token = os.getenv("HF_TOKEN")
 
-    if not hf_token:
-        return {
-            "url": None,
-            "error": "HF_TOKEN is not set in environment variables."
-        }
-
-    huggingface_hub.login(
-        token=hf_token,
-        add_to_git_credential=False
-    )
+    try:
+        huggingface_hub_login()
+    except ValueError as e:
+        return { "url": None, "error": str(e) }
 
     input = event['input']
     task = input.get('task')      # text-to-image, image-to-image, image-to-video
@@ -120,6 +116,14 @@ def handler(event):
         "url": upload_to_cloud(output_path),
         "error": None
     }
+
+def huggingface_hub_login():
+    hf_token = os.getenv("HF_TOKEN")
+
+    if not hf_token:
+        raise ValueError("HF_TOKEN is not set in environment variables.")
+
+    huggingface_hub.login(token=hf_token, add_to_git_credential=False)
 
 def get_model(model_id, task):
 

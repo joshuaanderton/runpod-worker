@@ -16,3 +16,4 @@ imageio
 accelerate
 huggingface_hub
 hf_transfer
+dotenv
